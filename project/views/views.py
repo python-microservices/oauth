@@ -1,0 +1,76 @@
+# encoding: utf-8
+from __future__ import absolute_import, print_function, unicode_literals
+
+from flask import request, jsonify
+from flask_jwt import jwt_required, current_identity
+
+from project.models.models import User, db
+from project.views import views_bp
+from project.views.oauth import jwt, authenticate
+
+
+class UserNotFoundException(Exception):
+    pass
+
+
+@views_bp.route("/login", methods=["POST"])
+def login():
+    """
+    User authenticate method.
+    ---
+    description: Authenticate user with supplied credentials.
+    parameters:
+      - name: username
+        in: formData
+        type: string
+        required: true
+      - name: password
+        in: formData
+        type: string
+        required: true
+    responses:
+      200:
+        description: User successfully logged in.
+      400:
+        description: User login failed.
+    """
+    try:
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        user = authenticate(username, password)
+        if not user:
+            raise UserNotFoundException("User not found!")
+
+        access_token = jwt.jwt_encode_callback(user)
+
+        resp = jsonify({"access_token": str(access_token, "utf-8")})
+        resp.status_code = 200
+
+        # add token to response headers - so SwaggerUI can use it
+        resp.headers.extend({'jwt-token': access_token})
+
+    except UserNotFoundException:
+        resp = jsonify({"message": "Bad username and/or password"})
+        resp.status_code = 401
+    return resp
+
+
+@views_bp.route("/check-token", methods=["GET"])
+@jwt_required()
+def protected():
+    """
+    Protected content method.
+    ---
+    description: Protected content method. Can not be seen without valid token.
+    security:
+      - APIKeyQueryParam: []
+      - APIKeyHeader: []
+    responses:
+      200:
+        description: User successfully accessed the content.
+    """
+    resp = jsonify({"protected": "{}".format(current_identity)})
+    resp.status_code = 200
+
+    return resp
