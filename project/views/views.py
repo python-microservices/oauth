@@ -34,6 +34,7 @@ def login():
       400:
         description: User login failed.
     """
+    print("llega {}".format(request.headers))
     try:
         username = request.form.get("username")
         password = request.form.get("password")
@@ -53,6 +54,7 @@ def login():
     except UserNotFoundException:
         resp = jsonify({"message": "Bad username and/or password"})
         resp.status_code = 401
+    print(resp.headers)
     return resp
 
 
