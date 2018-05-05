@@ -6,7 +6,7 @@ import datetime
 from flask_login import UserMixin
 from sqlalchemy import Column, Integer, String, Boolean
 
-from project.models import db
+from pyms.models import db
 
 
 class User(db.Model, UserMixin):
