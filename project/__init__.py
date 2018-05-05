@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+import logging
 import os
 
 from flasgger import Swagger
@@ -8,13 +9,19 @@ from flask_injector import FlaskInjector
 from injector import Injector
 
 from project.config import CONFIG
-from project.tracer.main import ProjectTracer
+from pyms.healthcheck import healthcheck_blueprint
+from pyms.logger import CustomJsonFormatter
+from pyms.models import db
+from pyms.tracer.main import TracerModule
 
 __author__ = "Alberto Vara"
 __email__ = "a.vara.1986@gmail.com"
 __version__ = "0.0.1"
 
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "default")
+
+logger = logging.getLogger('jaeger_tracing')
+logger.setLevel(logging.DEBUG)
 
 SWAGGER_CONFIG = {
     "headers": [
@@ -76,9 +83,7 @@ def create_app():
     return the app and the database objects.
     :return:
     """
-    from project.models import db
     from project.views import views_bp as views_blueprint
-    from project.views import views_hc as views_hc_blueprint
     from project.views.oauth import jwt, bcrypt
     environment = os.environ.get("ENVIRONMENT", "default")
 
@@ -106,10 +111,21 @@ def create_app():
 
     # Initialize Blueprints
     app.register_blueprint(views_blueprint)
-    app.register_blueprint(views_hc_blueprint)
+    app.register_blueprint(healthcheck_blueprint)
 
-    injector = Injector([ProjectTracer(app)])
-    FlaskInjector(app=app, injector=injector)
+    # Inject Modules
+    # Inject Modules
+    if not app.config["TESTING"] and not app.config["DEBUG"]:
+        log_handler = logging.StreamHandler()
+        formatter = CustomJsonFormatter('(timestamp) (level) (name) (module) (funcName) (lineno) (message)')
+        formatter.add_service_name(app.config["APP_NAME"])
+        tracer = TracerModule(app)
+        injector = Injector([tracer])
+        FlaskInjector(app=app, injector=injector)
+        formatter.add_trace_span(tracer.tracer)
+        log_handler.setFormatter(formatter)
+        app.logger.addHandler(log_handler)
+        app.logger.setLevel(logging.INFO)
 
     with app.test_request_context():
         db.create_all()

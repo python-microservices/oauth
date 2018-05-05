@@ -4,7 +4,6 @@ from __future__ import absolute_import, print_function, unicode_literals
 from flask import request, jsonify
 from flask_jwt import jwt_required, current_identity
 
-from project.models.models import User, db
 from project.views import views_bp
 from project.views.oauth import jwt, authenticate
 
@@ -34,7 +33,7 @@ def login():
       400:
         description: User login failed.
     """
-    print("llega {}".format(request.headers))
+    # current_app.logger.info("{}".format(request.headers))
     try:
         username = request.form.get("username")
         password = request.form.get("password")
