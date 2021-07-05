@@ -2,10 +2,10 @@
 from __future__ import absolute_import, print_function, unicode_literals
 
 from flask import request, jsonify
-from flask_jwt import jwt_required, current_identity
-
+from flask_jwt_extended import (create_access_token,create_refresh_token,
+    get_jwt_identity,jwt_required,jwt_refresh_token_required)
 from project.views import views_bp
-from project.views.oauth import jwt, authenticate
+from project.views.oauth import authenticate
 
 
 class UserNotFoundException(Exception):
@@ -42,9 +42,13 @@ def login():
         if not user:
             raise UserNotFoundException("User not found!")
 
-        access_token = jwt.jwt_encode_callback(user)
+        access_token = create_access_token(identity=user.id,fresh=False)
+        refresh_token = create_refresh_token(user.id)
 
-        resp = jsonify({"access_token": str(access_token, "utf-8")})
+        resp = jsonify({
+          "access_token": str(access_token, "utf-8"),
+          "refresh_token": str(refresh_token,"utf-8")
+          })
         resp.status_code = 200
 
         # add token to response headers - so SwaggerUI can use it
@@ -71,7 +75,27 @@ def protected():
       200:
         description: User successfully accessed the content.
     """
-    resp = jsonify({"protected": "{}".format(current_identity)})
+    resp = jsonify({"protected": "{}".format(get_jwt_identity())})
     resp.status_code = 200
 
     return resp
+
+@views_bp.route("/refresh-token",methods=["POST"])
+@jwt_refresh_token_required
+def refresh_token():
+  """
+  Refresh Token Method
+  ---
+  description: Refresh Access Tokens of the user
+  responses:
+    200:
+      description: User has generated new access tokens
+  """
+  current_user = get_jwt_identity()
+  access_token = create_access_token(identity=current_user,fresh=False)
+  resp = jsonify({"access_token": str(access_token, "utf-8")})
+
+  resp.status_code = 200
+  resp.headers.extend({'jwt-token': access_token})
+  return resp
+
