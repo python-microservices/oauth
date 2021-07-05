@@ -1,6 +1,6 @@
 -e git+https://github.com/jaegertracing/jaeger-client-python.git#egg=jaeger_client
 flasgger==0.8.1
-Flask==0.12.2
+Flask==1.0
 Flask-Bcrypt==0.7.1
 Flask-Injector==0.10.1
 Flask-JWT-Extended==3.24.1
